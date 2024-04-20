@@ -28,10 +28,12 @@ public class PA3 {
         };
 
         // Create transformer for analysis
-        AnalysisTransformer analysisTransformer = new AnalysisTransformer();
+        MonomorphicTransformer monomorphicTransformer = new MonomorphicTransformer();
+        NullTransformer nullTransformer= new NullTransformer();
 
         // Add transformer to appropriate pack in PackManager; PackManager will run all packs when soot.Main.main is called
-        PackManager.v().getPack("wjtp").add(new Transform("wjtp.gc", analysisTransformer));
+        PackManager.v().getPack("wjtp").add(new Transform("wjtp.mm", monomorphicTransformer));
+        PackManager.v().getPack("wjtp").add(new Transform("wjtp.nl", nullTransformer));
 
         // Call Soot's main method with arguments
         soot.Main.main(sootArgs);

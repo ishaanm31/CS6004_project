@@ -12,7 +12,7 @@ import soot.toolkits.graph.*;
 import soot.toolkits.scalar.BackwardFlowAnalysis;
 import soot.toolkits.scalar.FlowSet;
 
-public class AnalysisTransformer extends SceneTransformer {
+public class MonomorphicTransformer extends SceneTransformer {
     static CallGraph cg;
     @Override
     protected void internalTransform(String arg0, Map<String, String> arg1) {
