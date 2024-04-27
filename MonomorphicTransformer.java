@@ -59,6 +59,7 @@ public class MonomorphicTransformer extends SceneTransformer {
                     Iterator<Edge> OutEdges= edgesOutOf(u);
                     List<Edge> list= new ArrayList<>();
                     Map<SootClass,BranchBox> Branches= new HashMap<>();
+                    Set<BranchBox> S= new HashSet<>();
                     int BranchSize=0;
                     while(OutEdges.hasNext()){
                         if(MAX_BRANCH==BranchSize++) break;
@@ -66,19 +67,48 @@ public class MonomorphicTransformer extends SceneTransformer {
                         SootMethod callee=(SootMethod)e.getTgt(); 
                         //z= obj instanceof Class
                         JimpleLocal z= new JimpleLocal("instanceofRes", IntType.v()) ;
-                        Unit InstanceofStmt = new JAssignStmt(z, new JInstanceOfExpr( rhs_vie.getBase(),callee.getDeclaringClass().getType()));
-                        Unit AssignmentStmt = new JAssignStmt(stmt.getLeftOp(),
+                        JAssignStmt InstanceofStmt = new JAssignStmt(z, new JInstanceOfExpr( rhs_vie.getBase(),callee.getDeclaringClass().getType()));
+                        JAssignStmt AssignmentStmt = new JAssignStmt(stmt.getLeftOp(),
                                                             new JVirtualInvokeExpr(rhs_vie.getBase(),callee.makeRef(), rhs_vie.getArgs()));
                         
-                        Branches.put(callee.getDeclaringClass(),new BranchBox(e,InstanceofStmt,AssignmentStmt));
+                        BranchBox b= new BranchBox(callee.getDeclaringClass(),e,InstanceofStmt,AssignmentStmt);
+                        Branches.put(callee.getDeclaringClass(),b);
+                        S.add(b);
                     }
                     //If true means the branches are too many we are better off using a polymorphic call instead of a PIC
                     if(BranchSize==1+MAX_BRANCH) continue;
 
-                    
+                    //Creating children relationship in branchbox taken from class heirarchy
+                    for(BranchBox bb: S){
+                        List<SootClass> l=getDirectSubclassesOf(bb.Klass) ;
+                        for(SootClass c:l){
+                            if(Branches.containsKey(c)) bb.addChild(Branches.get(c));
+                        }
+                    }
 
-                    //Unit IfStmt = new JIfStmt(new JCmpExpr(z, new IntConstant(0)), StmtAfter);
+                    //Now lets create the sequence of branching 
+                    List<BranchBox> BranchSequence = new ArrayList<>();
+                    BranchBox.DfsMarker.empty();
+                    for(BranchBox c: S) c.DFS(BranchSequence);
 
+                    //Now its finally time to add our new branches to the body of our code
+
+                    Unit StmtBefore= units.getPredOf(u);
+                    Unit StmtAfter= units.getSuccof(u);
+                    Unit IfTarget;
+                    for(int i=0;i<BranchSequence.size();i++){
+                        units.insertAfter(BranchSequence.get(i).InstanceofStmt,StmtBefore);
+                        if(i==BranchSequence.size()-1)     IfTarget=StmtAfter;
+                        else IfTarget= BranchSequence.get(i+1).InstanceofStmt;
+                        Unit IfStmt = new JIfStmt(new JCmpExpr(BranchSequence.get(i).AssignmentStmt.getLeftOp(), new IntConstant(0)), IfTarget);
+                        units.insertAfter(IfStmt,BranchSequence.get(i).InstanceofStmt);
+                        units.insertAfter(BranchSequence.get(i).AssignmentStmt,IfStmt);
+                        Unit GoTo=new JGotoStmt(StmtAfter);
+                        units.insertAfter(GoTo,BranchSequence.get(i).AssignmentStmt);  
+                        StmtBefore= GoTo;
+                    }
+                    units.insertAfter(StmtAfter,StmtBefore);
+                    //Now our part is done of making the PIC
                 }
             }
         }
