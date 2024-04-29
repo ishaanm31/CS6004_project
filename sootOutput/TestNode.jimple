@@ -14,7 +14,7 @@ class TestNode extends java.lang.Object
         return;
     }
 
-    TestNode car()
+    void car()
     {
         java.io.PrintStream $r0;
         TestNode r1;
@@ -23,8 +23,15 @@ class TestNode extends java.lang.Object
 
         $r0 = <java.lang.System: java.io.PrintStream out>;
 
-        virtualinvoke $r0.<java.io.PrintStream: void println(java.lang.String)>("hoho");
+        instanceofRes0 = $r0 instanceof java.io.PrintStream;
 
-        return r1;
+        if instanceofRes0 == 0 goto label1;
+
+        RecieverCast0 = (java.io.PrintStream) $r0;
+
+        virtualinvoke RecieverCast0.<java.io.PrintStream: void println(java.lang.String)>("hoho");
+
+     label1:
+        return;
     }
 }

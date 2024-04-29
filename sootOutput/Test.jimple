@@ -15,9 +15,9 @@ public class Test extends java.lang.Object
 
     public static void main(java.lang.String[])
     {
-        java.lang.String[] r1;
+        java.lang.String[] r0;
 
-        r1 := @parameter0: java.lang.String[];
+        r0 := @parameter0: java.lang.String[];
 
         staticinvoke <Test: TestNode foo()>();
 
@@ -26,42 +26,60 @@ public class Test extends java.lang.Object
 
     public static TestNode foo()
     {
-        TestNode $r0, r4;
-        Yolo $r2;
+        TestNode $r0, r2;
+        Yolo $r1;
 
         $r0 = new TestNode;
 
         specialinvoke $r0.<TestNode: void <init>()>();
 
-        $r2 = new Yolo;
+        $r1 = new Yolo;
 
-        specialinvoke $r2.<Yolo: void <init>()>();
+        specialinvoke $r1.<Yolo: void <init>()>();
 
-        r4 = $r2;
+        r2 = $r1;
 
-        if $r2 != null goto label1;
+        if $r1 != null goto label1;
 
-        r4 = $r0;
+        r2 = $r0;
 
      label1:
-        virtualinvoke r4.<TestNode: TestNode car()>();
+        instanceofRes3 = r2 instanceof Yolo;
 
+        if instanceofRes3 == 0 goto label2;
+
+        RecieverCast3 = (Yolo) r2;
+
+        virtualinvoke RecieverCast3.<Yolo: void car()>();
+
+        goto label3;
+
+     label2:
+        instanceofRes2 = r2 instanceof TestNode;
+
+        if instanceofRes2 == 0 goto label3;
+
+        RecieverCast2 = (TestNode) r2;
+
+        virtualinvoke RecieverCast2.<TestNode: void car()>();
+
+     label3:
         return $r0;
     }
 
     public static void bar(TestNode, TestNode)
     {
-        TestNode $r0, r2, r3;
+        TestNode $r0, r1, r2;
 
-        r2 := @parameter0: TestNode;
+        r1 := @parameter0: TestNode;
 
-        r3 := @parameter1: TestNode;
+        r2 := @parameter1: TestNode;
 
         $r0 = new TestNode;
 
         specialinvoke $r0.<TestNode: void <init>()>();
 
-        r2.<TestNode: TestNode f> = $r0;
+        r1.<TestNode: TestNode f> = $r0;
 
         return;
     }

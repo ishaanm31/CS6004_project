@@ -2,15 +2,15 @@ class TestNode {
 	TestNode f;
 	TestNode g;
 	TestNode() {}
-	TestNode car(){
+	void car(){
 		System.out.println("hoho");
-		return this;
+		// return this;
 	}
 }
 class Yolo extends TestNode{
-	TestNode car(){
+	void car(){
 		System.out.println("nono");
-		return this;
+		// return this;
 	}
 }
 
@@ -23,7 +23,7 @@ public class Test {
 		TestNode x = new TestNode();
 		TestNode y = new Yolo();
 		if(y==null) y=x;
-		y=y.car();
+		y.car();
 		return x;
 	}
 	public static void bar(TestNode p1, TestNode p2){

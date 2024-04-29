@@ -37,6 +37,6 @@ public class PA3 {
 
         // Call Soot's main method with arguments
         soot.Main.main(sootArgs);
-
+        System.out.println("came here");
     }
 }
