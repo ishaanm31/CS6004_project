@@ -81,12 +81,10 @@ public class MonomorphicTransformer extends SceneTransformer {
                 Local z= Jimple.v().newLocal("instanceofRes"+k.toString(), IntType.v()) ;
                 k++;
                 AssignStmt InstanceofStmt = Jimple.v().newAssignStmt(z, Jimple.v().newInstanceOfExpr( rhs_vie.getBase(),callee.getDeclaringClass().getType()));
-                VirtualInvokeExpr VIE= Jimple.v().newVirtualInvokeExpr(rhs_vie.getBase(),callee.makeRef(), rhs_vie.getArgs());
+                VirtualInvokeExpr VIE= new JVirtualInvokeExpr(rhs_vie.getBase(),callee.makeRef(), rhs_vie.getArgs());
                 AssignStmt AssignmentStmt = Jimple.v().newAssignStmt(
                     stmt.getLeftOp(), 
-                    VIE);
-                
-                                                                                        
+                    VIE);                                                                                        
                 BranchBox b= new BranchBox(callee.getDeclaringClass(),e,InstanceofStmt,AssignmentStmt);
                 Branches.put(callee.getDeclaringClass(),b);
                 S.add(b);
