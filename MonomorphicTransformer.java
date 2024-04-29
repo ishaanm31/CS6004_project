@@ -27,8 +27,9 @@ public class MonomorphicTransformer extends SceneTransformer {
     static CallGraph cg;
     static PointsToAnalysis PTG;
     static Hierarchy ClassHierarchy;
+    static Integer k=0;
     @Override
-    protected void internalTransform(String arg0, Map<String, String> arg1) {
+    synchronized protected void internalTransform(String arg0, Map<String, String> arg1) {
         //Creating the call graph
         cg = Scene.v().getCallGraph();
         //Creating point to graph 
@@ -43,11 +44,14 @@ public class MonomorphicTransformer extends SceneTransformer {
         for(SootMethod Method: AllMethods){
             Transform(Method);            //This will individually transform each method 
         }
+        System.out.println("came here");
     }
+
     private void Transform(SootMethod Method){
         System.out.println("Method: "+ Method.toString());
         //Getting unit chain of the method
         Body body=Method.getActiveBody();
+        ExceptionalUnitGraph cfg= new ExceptionalUnitGraph(body) ;
         PatchingChain<Unit> units= body.getUnits();
         Set<JAssignStmt> AssignSet= new HashSet<>();
         for(Unit u: units){
@@ -59,7 +63,7 @@ public class MonomorphicTransformer extends SceneTransformer {
         }
         for(JAssignStmt stmt: AssignSet){
             Value rhs= stmt.getRightOp();
-            System.out.println(stmt);
+            System.out.println("Transforming statement: "+ stmt.toString());
             JVirtualInvokeExpr rhs_vie= (JVirtualInvokeExpr)rhs;
             //This is a virutalinvoke callsit which we wish to convert to multiple statics
             Iterator<Edge> OutEdges= cg.edgesOutOf(stmt);
@@ -67,12 +71,15 @@ public class MonomorphicTransformer extends SceneTransformer {
             Map<SootClass,BranchBox> Branches= new HashMap<>();
             Set<BranchBox> S= new HashSet<>();
             int BranchSize=0;
+            System.out.println("OutEdges : ");
             while(OutEdges.hasNext()){
                 if(MAX_BRANCH==BranchSize++) break;
                 Edge e = OutEdges.next();
+                System.out.println(e);
                 SootMethod callee=(SootMethod)e.getTgt(); 
                 //z= obj instanceof Class
-                JimpleLocal z= new JimpleLocal("instanceofRes", IntType.v()) ;
+                JimpleLocal z= new JimpleLocal("instanceofRes"+k.toString(), IntType.v()) ;
+                k++;
                 JAssignStmt InstanceofStmt = new JAssignStmt(z, new JInstanceOfExpr( rhs_vie.getBase(),callee.getDeclaringClass().getType()));
                 JAssignStmt AssignmentStmt = new JAssignStmt(stmt.getLeftOp(),
                                                     new JVirtualInvokeExpr(rhs_vie.getBase(),callee.makeRef(), rhs_vie.getArgs()));
@@ -80,6 +87,7 @@ public class MonomorphicTransformer extends SceneTransformer {
                 BranchBox b= new BranchBox(callee.getDeclaringClass(),e,InstanceofStmt,AssignmentStmt);
                 Branches.put(callee.getDeclaringClass(),b);
                 S.add(b);
+                
             }
             //If true means the branches are too many we are better off using a polymorphic call instead of a PIC
             if(BranchSize==1+MAX_BRANCH) continue;
@@ -102,19 +110,36 @@ public class MonomorphicTransformer extends SceneTransformer {
             Unit StmtBefore= units.getPredOf(stmt);
             Unit StmtAfter= units.getSuccOf(stmt);
             Unit IfTarget;
+            units.remove(stmt);
             for(int i=0;i<BranchSequence.size();i++){
                 units.insertAfter(BranchSequence.get(i).InstanceofStmt,StmtBefore);
                 if(i==BranchSequence.size()-1)     IfTarget=StmtAfter;
                 else IfTarget= BranchSequence.get(i+1).InstanceofStmt;
-                Unit IfStmt = new JIfStmt(new JEqExpr(BranchSequence.get(i).AssignmentStmt.getLeftOp(), IntConstant.v(0)), IfTarget);
+                Unit IfStmt = new JIfStmt(new JEqExpr(BranchSequence.get(i).InstanceofStmt.getLeftOp(), IntConstant.v(0)), IfTarget);
                 units.insertAfter(IfStmt,BranchSequence.get(i).InstanceofStmt);
                 units.insertAfter(BranchSequence.get(i).AssignmentStmt,IfStmt);
                 Unit GoTo=new JGotoStmt(StmtAfter);
-                units.insertAfter(GoTo,BranchSequence.get(i).AssignmentStmt);  
+                if(i!=BranchSequence.size()-1)units.insertAfter(GoTo,BranchSequence.get(i).AssignmentStmt);  
                 StmtBefore= GoTo;
             }
-            //units.insertAfter(StmtAfter,StmtBefore);
             //Now our part is done of making the PIC
+
+            //Other points can jump to out removes unit
+            List<Unit> pred= cfg.getPredsOf(stmt);
+            for(Unit p: pred){
+                if(p instanceof JGotoStmt){
+                    JGotoStmt q= (JGotoStmt)p;
+                    q.setTarget(BranchSequence.get(0).InstanceofStmt);
+                }
+                if(p instanceof JIfStmt){
+                    JIfStmt q= (JIfStmt)p;
+                    q.setTarget(BranchSequence.get(0).InstanceofStmt);
+                }
+            }
+        }
+
+        for(Unit u: body.getUnits()){
+            System.out.println(u);
         }
         //Printing the units
     }

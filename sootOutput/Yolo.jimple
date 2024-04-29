@@ -12,7 +12,7 @@ class Yolo extends TestNode
         return;
     }
 
-    void car()
+    TestNode car()
     {
         java.io.PrintStream $r0;
         Yolo r1;
@@ -23,6 +23,6 @@ class Yolo extends TestNode
 
         virtualinvoke $r0.<java.io.PrintStream: void println(java.lang.String)>("nono");
 
-        return;
+        return r1;
     }
 }
