@@ -45,73 +45,78 @@ public class MonomorphicTransformer extends SceneTransformer {
         }
     }
     private void Transform(SootMethod Method){
+        System.out.println("Method: "+ Method.toString());
         //Getting unit chain of the method
         Body body=Method.getActiveBody();
         PatchingChain<Unit> units= body.getUnits();
-
+        Set<JAssignStmt> AssignSet= new HashSet<>();
         for(Unit u: units){
             if(u instanceof JAssignStmt){
                 JAssignStmt stmt= (JAssignStmt)u;
                 Value rhs= stmt.getRightOp();
-                if(rhs instanceof  JVirtualInvokeExpr){
-                    JVirtualInvokeExpr rhs_vie= (JVirtualInvokeExpr)rhs;
-                    //This is a virutalinvoke callsit which we wish to convert to multiple statics
-                    Iterator<Edge> OutEdges= edgesOutOf(u);
-                    List<Edge> list= new ArrayList<>();
-                    Map<SootClass,BranchBox> Branches= new HashMap<>();
-                    Set<BranchBox> S= new HashSet<>();
-                    int BranchSize=0;
-                    while(OutEdges.hasNext()){
-                        if(MAX_BRANCH==BranchSize++) break;
-                        Edge e = OutEdges.next();
-                        SootMethod callee=(SootMethod)e.getTgt(); 
-                        //z= obj instanceof Class
-                        JimpleLocal z= new JimpleLocal("instanceofRes", IntType.v()) ;
-                        JAssignStmt InstanceofStmt = new JAssignStmt(z, new JInstanceOfExpr( rhs_vie.getBase(),callee.getDeclaringClass().getType()));
-                        JAssignStmt AssignmentStmt = new JAssignStmt(stmt.getLeftOp(),
-                                                            new JVirtualInvokeExpr(rhs_vie.getBase(),callee.makeRef(), rhs_vie.getArgs()));
-                        
-                        BranchBox b= new BranchBox(callee.getDeclaringClass(),e,InstanceofStmt,AssignmentStmt);
-                        Branches.put(callee.getDeclaringClass(),b);
-                        S.add(b);
-                    }
-                    //If true means the branches are too many we are better off using a polymorphic call instead of a PIC
-                    if(BranchSize==1+MAX_BRANCH) continue;
-
-                    //Creating children relationship in branchbox taken from class heirarchy
-                    for(BranchBox bb: S){
-                        List<SootClass> l=getDirectSubclassesOf(bb.Klass) ;
-                        for(SootClass c:l){
-                            if(Branches.containsKey(c)) bb.addChild(Branches.get(c));
-                        }
-                    }
-
-                    //Now lets create the sequence of branching 
-                    List<BranchBox> BranchSequence = new ArrayList<>();
-                    BranchBox.DfsMarker.empty();
-                    for(BranchBox c: S) c.DFS(BranchSequence);
-
-                    //Now its finally time to add our new branches to the body of our code
-
-                    Unit StmtBefore= units.getPredOf(u);
-                    Unit StmtAfter= units.getSuccof(u);
-                    Unit IfTarget;
-                    for(int i=0;i<BranchSequence.size();i++){
-                        units.insertAfter(BranchSequence.get(i).InstanceofStmt,StmtBefore);
-                        if(i==BranchSequence.size()-1)     IfTarget=StmtAfter;
-                        else IfTarget= BranchSequence.get(i+1).InstanceofStmt;
-                        Unit IfStmt = new JIfStmt(new JCmpExpr(BranchSequence.get(i).AssignmentStmt.getLeftOp(), new IntConstant(0)), IfTarget);
-                        units.insertAfter(IfStmt,BranchSequence.get(i).InstanceofStmt);
-                        units.insertAfter(BranchSequence.get(i).AssignmentStmt,IfStmt);
-                        Unit GoTo=new JGotoStmt(StmtAfter);
-                        units.insertAfter(GoTo,BranchSequence.get(i).AssignmentStmt);  
-                        StmtBefore= GoTo;
-                    }
-                    units.insertAfter(StmtAfter,StmtBefore);
-                    //Now our part is done of making the PIC
-                }
+                if(rhs instanceof JVirtualInvokeExpr) AssignSet.add(stmt);
             }
         }
+        for(JAssignStmt stmt: AssignSet){
+            Value rhs= stmt.getRightOp();
+            System.out.println(stmt);
+            JVirtualInvokeExpr rhs_vie= (JVirtualInvokeExpr)rhs;
+            //This is a virutalinvoke callsit which we wish to convert to multiple statics
+            Iterator<Edge> OutEdges= cg.edgesOutOf(stmt);
+            List<Edge> list= new ArrayList<>();
+            Map<SootClass,BranchBox> Branches= new HashMap<>();
+            Set<BranchBox> S= new HashSet<>();
+            int BranchSize=0;
+            while(OutEdges.hasNext()){
+                if(MAX_BRANCH==BranchSize++) break;
+                Edge e = OutEdges.next();
+                SootMethod callee=(SootMethod)e.getTgt(); 
+                //z= obj instanceof Class
+                JimpleLocal z= new JimpleLocal("instanceofRes", IntType.v()) ;
+                JAssignStmt InstanceofStmt = new JAssignStmt(z, new JInstanceOfExpr( rhs_vie.getBase(),callee.getDeclaringClass().getType()));
+                JAssignStmt AssignmentStmt = new JAssignStmt(stmt.getLeftOp(),
+                                                    new JVirtualInvokeExpr(rhs_vie.getBase(),callee.makeRef(), rhs_vie.getArgs()));
+                
+                BranchBox b= new BranchBox(callee.getDeclaringClass(),e,InstanceofStmt,AssignmentStmt);
+                Branches.put(callee.getDeclaringClass(),b);
+                S.add(b);
+            }
+            //If true means the branches are too many we are better off using a polymorphic call instead of a PIC
+            if(BranchSize==1+MAX_BRANCH) continue;
+
+            //Creating children relationship in branchbox taken from class heirarchy
+            for(BranchBox bb: S){
+                List<SootClass> l= ClassHierarchy.getDirectSubclassesOf(bb.Klass) ;
+                for(SootClass c:l){
+                    if(Branches.containsKey(c)) bb.addChild(Branches.get(c));
+                }
+            }
+
+            //Now lets create the sequence of branching 
+            List<BranchBox> BranchSequence = new ArrayList<>();
+            BranchBox.DfsMarker.clear();
+            for(BranchBox c: S) c.DFS(BranchSequence);
+
+            //Now its finally time to add our new branches to the body of our code
+
+            Unit StmtBefore= units.getPredOf(stmt);
+            Unit StmtAfter= units.getSuccOf(stmt);
+            Unit IfTarget;
+            for(int i=0;i<BranchSequence.size();i++){
+                units.insertAfter(BranchSequence.get(i).InstanceofStmt,StmtBefore);
+                if(i==BranchSequence.size()-1)     IfTarget=StmtAfter;
+                else IfTarget= BranchSequence.get(i+1).InstanceofStmt;
+                Unit IfStmt = new JIfStmt(new JEqExpr(BranchSequence.get(i).AssignmentStmt.getLeftOp(), IntConstant.v(0)), IfTarget);
+                units.insertAfter(IfStmt,BranchSequence.get(i).InstanceofStmt);
+                units.insertAfter(BranchSequence.get(i).AssignmentStmt,IfStmt);
+                Unit GoTo=new JGotoStmt(StmtAfter);
+                units.insertAfter(GoTo,BranchSequence.get(i).AssignmentStmt);  
+                StmtBefore= GoTo;
+            }
+            //units.insertAfter(StmtAfter,StmtBefore);
+            //Now our part is done of making the PIC
+        }
+        //Printing the units
     }
     private static void getlistofMethods(SootMethod method, Set<SootMethod> reachableMethods) {
         // Avoid revisiting methods

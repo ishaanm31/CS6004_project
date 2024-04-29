@@ -1,0 +1,28 @@
+class Yolo extends TestNode
+{
+
+    void <init>()
+    {
+        Yolo r0;
+
+        r0 := @this: Yolo;
+
+        specialinvoke r0.<TestNode: void <init>()>();
+
+        return;
+    }
+
+    void car()
+    {
+        java.io.PrintStream $r0;
+        Yolo r1;
+
+        r1 := @this: Yolo;
+
+        $r0 = <java.lang.System: java.io.PrintStream out>;
+
+        virtualinvoke $r0.<java.io.PrintStream: void println(java.lang.String)>("nono");
+
+        return;
+    }
+}

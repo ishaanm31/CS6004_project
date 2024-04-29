@@ -1,0 +1,30 @@
+class TestNode extends java.lang.Object
+{
+    TestNode f;
+    TestNode g;
+
+    void <init>()
+    {
+        TestNode r0;
+
+        r0 := @this: TestNode;
+
+        specialinvoke r0.<java.lang.Object: void <init>()>();
+
+        return;
+    }
+
+    void car()
+    {
+        java.io.PrintStream $r0;
+        TestNode r1;
+
+        r1 := @this: TestNode;
+
+        $r0 = <java.lang.System: java.io.PrintStream out>;
+
+        virtualinvoke $r0.<java.io.PrintStream: void println(java.lang.String)>("hoho");
+
+        return;
+    }
+}

@@ -2,6 +2,16 @@ class TestNode {
 	TestNode f;
 	TestNode g;
 	TestNode() {}
+	TestNode car(){
+		System.out.println("hoho");
+		return this;
+	}
+}
+class Yolo extends TestNode{
+	TestNode car(){
+		System.out.println("nono");
+		return this;
+	}
 }
 
 public class Test {
@@ -11,12 +21,9 @@ public class Test {
 	}
 	public static TestNode foo(){
 		TestNode x = new TestNode();
-		TestNode y = new TestNode();
-		y.f = new TestNode();
-		y = new TestNode();
-		bar(x, y);
-		TestNode z = y.f;
-		TestNode a = x.f;
+		TestNode y = new Yolo();
+		if(y==null) y=x;
+		y=y.car();
 		return x;
 	}
 	public static void bar(TestNode p1, TestNode p2){

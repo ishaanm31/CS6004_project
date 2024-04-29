@@ -1,0 +1,68 @@
+public class Test extends java.lang.Object
+{
+    public static TestNode global;
+
+    public void <init>()
+    {
+        Test r0;
+
+        r0 := @this: Test;
+
+        specialinvoke r0.<java.lang.Object: void <init>()>();
+
+        return;
+    }
+
+    public static void main(java.lang.String[])
+    {
+        java.lang.String[] r1;
+
+        r1 := @parameter0: java.lang.String[];
+
+        staticinvoke <Test: TestNode foo()>();
+
+        return;
+    }
+
+    public static TestNode foo()
+    {
+        TestNode $r0, r3;
+        Yolo $r2;
+
+        $r0 = new TestNode;
+
+        specialinvoke $r0.<TestNode: void <init>()>();
+
+        $r2 = new Yolo;
+
+        specialinvoke $r2.<Yolo: void <init>()>();
+
+        r3 = $r2;
+
+        if $r2 != null goto label1;
+
+        r3 = $r0;
+
+     label1:
+        virtualinvoke r3.<TestNode: void car()>();
+
+        return $r0;
+    }
+
+    public static void bar(TestNode, TestNode)
+    {
+        TestNode $r0, r2, r3;
+
+        r2 := @parameter0: TestNode;
+
+        r3 := @parameter1: TestNode;
+
+        $r0 = new TestNode;
+
+        specialinvoke $r0.<TestNode: void <init>()>();
+
+        r2.<TestNode: TestNode f> = $r0;
+
+        return;
+    }
+}
