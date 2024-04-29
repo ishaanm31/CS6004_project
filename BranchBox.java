@@ -13,9 +13,9 @@ import soot.toolkits.scalar.BackwardFlowAnalysis;
 import soot.toolkits.scalar.FlowSet;
 public class BranchBox{
     static Set<BranchBox> DfsMarker= new HashSet<>(); 
-    SootClass Klass; Edge edge; JAssignStmt InstanceofStmt; JAssignStmt AssignmentStmt;
+    SootClass Klass; Edge edge; AssignStmt InstanceofStmt; AssignStmt AssignmentStmt;
     Set<BranchBox> Children= new HashSet<>();
-    public BranchBox(SootClass c, Edge e,JAssignStmt a, JAssignStmt b){
+    public BranchBox(SootClass c, Edge e,AssignStmt a, AssignStmt b){
         Klass=c; edge=e; InstanceofStmt=a; AssignmentStmt=b;
     }
     public void addChild(BranchBox c){

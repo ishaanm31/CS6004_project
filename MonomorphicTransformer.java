@@ -78,12 +78,15 @@ public class MonomorphicTransformer extends SceneTransformer {
                 System.out.println(e);
                 SootMethod callee=(SootMethod)e.getTgt(); 
                 //z= obj instanceof Class
-                JimpleLocal z= new JimpleLocal("instanceofRes"+k.toString(), IntType.v()) ;
+                Local z= Jimple.v().newLocal("instanceofRes"+k.toString(), IntType.v()) ;
                 k++;
-                JAssignStmt InstanceofStmt = new JAssignStmt(z, new JInstanceOfExpr( rhs_vie.getBase(),callee.getDeclaringClass().getType()));
-                JAssignStmt AssignmentStmt = new JAssignStmt(stmt.getLeftOp(),
-                                                    new JVirtualInvokeExpr(rhs_vie.getBase(),callee.makeRef(), rhs_vie.getArgs()));
+                AssignStmt InstanceofStmt = Jimple.v().newAssignStmt(z, Jimple.v().newInstanceOfExpr( rhs_vie.getBase(),callee.getDeclaringClass().getType()));
+                VirtualInvokeExpr VIE= Jimple.v().newVirtualInvokeExpr(rhs_vie.getBase(),callee.makeRef(), rhs_vie.getArgs());
+                AssignStmt AssignmentStmt = Jimple.v().newAssignStmt(
+                    stmt.getLeftOp(), 
+                    VIE);
                 
+                                                                                        
                 BranchBox b= new BranchBox(callee.getDeclaringClass(),e,InstanceofStmt,AssignmentStmt);
                 Branches.put(callee.getDeclaringClass(),b);
                 S.add(b);
@@ -115,10 +118,10 @@ public class MonomorphicTransformer extends SceneTransformer {
                 units.insertAfter(BranchSequence.get(i).InstanceofStmt,StmtBefore);
                 if(i==BranchSequence.size()-1)     IfTarget=StmtAfter;
                 else IfTarget= BranchSequence.get(i+1).InstanceofStmt;
-                Unit IfStmt = new JIfStmt(new JEqExpr(BranchSequence.get(i).InstanceofStmt.getLeftOp(), IntConstant.v(0)), IfTarget);
+                Unit IfStmt = Jimple.v().newIfStmt(Jimple.v().newEqExpr(BranchSequence.get(i).InstanceofStmt.getLeftOp(), IntConstant.v(0)), IfTarget);
                 units.insertAfter(IfStmt,BranchSequence.get(i).InstanceofStmt);
                 units.insertAfter(BranchSequence.get(i).AssignmentStmt,IfStmt);
-                Unit GoTo=new JGotoStmt(StmtAfter);
+                Unit GoTo=Jimple.v().newGotoStmt(StmtAfter);
                 if(i!=BranchSequence.size()-1)units.insertAfter(GoTo,BranchSequence.get(i).AssignmentStmt);  
                 StmtBefore= GoTo;
             }
