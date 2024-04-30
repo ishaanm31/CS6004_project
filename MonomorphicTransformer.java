@@ -49,11 +49,13 @@ public class MonomorphicTransformer extends SceneTransformer {
     private void Transform(SootMethod Method){
         System.out.println("Method: "+ Method.toString());
         //Getting unit chain of the method
-        Body body=Method.getActiveBody();
-        ExceptionalUnitGraph cfg= new ExceptionalUnitGraph(body) ;
-        PatchingChain<Unit> units= body.getUnits();
-        Set<JAssignStmt> AssignSet= new HashSet<>();
-        Set<JInvokeStmt> InvokeSet= new HashSet<>();
+        Body body=Method.getActiveBody();   //Body of the Method
+        ExceptionalUnitGraph cfg= new ExceptionalUnitGraph(body); //Control Flow Graph
+        PatchingChain<Unit> units= body.getUnits();  //Units of the body
+        Set<JAssignStmt> AssignSet= new HashSet<>(); //Contains all the x=y.foo() units
+        Set<JInvokeStmt> InvokeSet= new HashSet<>(); //Contains all z.bar() units
+
+        //Filling AssignSet and Invoke Set
         for(Unit u: units){
             if(u instanceof JAssignStmt){
                 JAssignStmt stmt= (JAssignStmt)u;
@@ -70,11 +72,11 @@ public class MonomorphicTransformer extends SceneTransformer {
             Value rhs= stmt.getRightOp();
             System.out.println("Transforming asssign statement: "+ stmt.toString());
             JVirtualInvokeExpr RhsVie= (JVirtualInvokeExpr)rhs;
-            //This is a virutalinvoke callsit which we wish to convert to multiple statics
-            Iterator<Edge> OutEdges= cg.edgesOutOf(stmt);
-            List<Edge> list= new ArrayList<>();
-            Map<SootClass,BranchBox> Branches= new HashMap<>();
-            Set<BranchBox> S= new HashSet<>();
+            //This is a virutalinvoke callsite which we wish to convert to multiple statically known invokes
+            Iterator<Edge> OutEdges= cg.edgesOutOf(stmt); //Edges represent the possible invokation
+            List<Edge> list= new ArrayList<>();           
+            Map<SootClass,BranchBox> Branches= new HashMap<>();  // one possible type of the object-> BranchBox
+            Set<BranchBox> S= new HashSet<>();      //All Branchboxes
             int BranchSize=0;
             System.out.println("OutEdges : ");
             while(OutEdges.hasNext()){
@@ -89,13 +91,10 @@ public class MonomorphicTransformer extends SceneTransformer {
                 AssignStmt InstanceofStmt = Jimple.v().newAssignStmt(z, Jimple.v().newInstanceOfExpr( RhsVie.getBase(),callee.getDeclaringClass().getType()));
                 AssignStmt CastStmt = Jimple.v().newAssignStmt(RecieverCasted, Jimple.v().newCastExpr(RhsVie.getBase(),callee.getDeclaringClass().getType()));
                 VirtualInvokeExpr VIE= Jimple.v().newVirtualInvokeExpr(RecieverCasted,callee.makeRef(), RhsVie.getArgs());
-                AssignStmt AssignmentStmt = Jimple.v().newAssignStmt(
-                    stmt.getLeftOp(), 
-                    VIE);                                                                                 
+                AssignStmt AssignmentStmt = Jimple.v().newAssignStmt(stmt.getLeftOp(), VIE);                                                                                 
                 BranchBox b= new BranchBox(callee.getDeclaringClass(),e,InstanceofStmt,AssignmentStmt,CastStmt);
                 Branches.put(callee.getDeclaringClass(),b);
-                S.add(b);
-                
+                S.add(b);                
             }
             //If true means the branches are too many we are better off using a polymorphic call instead of a PIC
             if(BranchSize==1+MAX_BRANCH) continue;

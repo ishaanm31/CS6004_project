@@ -11,6 +11,10 @@ import soot.jimple.internal.*;
 import soot.toolkits.graph.*;
 import soot.toolkits.scalar.BackwardFlowAnalysis;
 import soot.toolkits.scalar.FlowSet;
+/*
+ * Just a container box of one static method call instead of a virtual one
+ * Also contains a children pointers to do a DFS
+ */
 public class BranchBox{
     static Set<BranchBox> DfsMarker= new HashSet<>(); 
     SootClass Klass; Edge edge; AssignStmt InstanceofStmt; Unit AssignmentStmt; AssignStmt CastStmt;

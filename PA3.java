@@ -21,7 +21,7 @@ public class PA3 {
         String[] sootArgs = {
             "-cp", classPath, "-pp",  // sets the class path for Soot
             "-w",                     // whole program analysis
-            "-f", "J",                // jimple file
+            "-f", "c",                // jimple file
             "-keep-line-number",      // preserves line numbers in input Java files
             "-main-class", "Test",	  // specify the main class
             "-process-dir", dir,      // directory of classes to analyze

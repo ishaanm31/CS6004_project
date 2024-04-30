@@ -1,35 +1,35 @@
 class Yolo extends TestNode
 {
 
-    void <init>()
+    void car()
     {
-        Yolo r0;
+        java.io.PrintStream temp$0;
+        Yolo this;
 
-        r0 := @this: Yolo;
+        this := @this: Yolo;
 
-        specialinvoke r0.<TestNode: void <init>()>();
+        temp$0 = <java.lang.System: java.io.PrintStream out>;
 
+        instanceofRes0 = temp$0 instanceof java.io.PrintStream;
+
+        if instanceofRes0 == 0 goto label1;
+
+        RecieverCast0 = (java.io.PrintStream) temp$0;
+
+        virtualinvoke RecieverCast0.<java.io.PrintStream: void println(java.lang.String)>("nono");
+
+     label1:
         return;
     }
 
-    void car()
+    void <init>()
     {
-        java.io.PrintStream $r0;
-        Yolo r1;
+        Yolo this;
 
-        r1 := @this: Yolo;
+        this := @this: Yolo;
 
-        $r0 = <java.lang.System: java.io.PrintStream out>;
+        specialinvoke this.<TestNode: void <init>()>();
 
-        instanceofRes1 = $r0 instanceof java.io.PrintStream;
-
-        if instanceofRes1 == 0 goto label1;
-
-        RecieverCast1 = (java.io.PrintStream) $r0;
-
-        virtualinvoke RecieverCast1.<java.io.PrintStream: void println(java.lang.String)>("nono");
-
-     label1:
         return;
     }
 }

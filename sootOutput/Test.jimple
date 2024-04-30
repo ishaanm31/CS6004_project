@@ -2,84 +2,92 @@ public class Test extends java.lang.Object
 {
     public static TestNode global;
 
-    public void <init>()
-    {
-        Test r0;
-
-        r0 := @this: Test;
-
-        specialinvoke r0.<java.lang.Object: void <init>()>();
-
-        return;
-    }
-
     public static void main(java.lang.String[])
     {
-        java.lang.String[] r0;
+        TestNode temp$0;
+        java.lang.String[] args;
 
-        r0 := @parameter0: java.lang.String[];
+        args := @parameter0: java.lang.String[];
 
-        staticinvoke <Test: TestNode foo()>();
+        temp$0 = staticinvoke <Test: TestNode foo()>();
 
         return;
     }
 
     public static TestNode foo()
     {
-        TestNode $r0, r2;
-        Yolo $r1;
+        Yolo temp$1;
+        TestNode x, temp$0, y;
 
-        $r0 = new TestNode;
+        temp$0 = new TestNode;
 
-        specialinvoke $r0.<TestNode: void <init>()>();
+        specialinvoke temp$0.<TestNode: void <init>()>();
 
-        $r1 = new Yolo;
+        x = temp$0;
 
-        specialinvoke $r1.<Yolo: void <init>()>();
+        temp$1 = new Yolo;
 
-        r2 = $r1;
+        specialinvoke temp$1.<Yolo: void <init>()>();
 
-        if $r1 != null goto label1;
+        y = temp$1;
 
-        r2 = $r0;
+        if y == null goto label1;
+
+        goto label2;
 
      label1:
-        instanceofRes3 = r2 instanceof Yolo;
-
-        if instanceofRes3 == 0 goto label2;
-
-        RecieverCast3 = (Yolo) r2;
-
-        virtualinvoke RecieverCast3.<Yolo: void car()>();
-
-        goto label3;
+        y = x;
 
      label2:
-        instanceofRes2 = r2 instanceof TestNode;
+        instanceofRes1 = y instanceof Yolo;
 
-        if instanceofRes2 == 0 goto label3;
+        if instanceofRes1 == 0 goto label3;
 
-        RecieverCast2 = (TestNode) r2;
+        RecieverCast1 = (Yolo) y;
+
+        virtualinvoke RecieverCast1.<Yolo: void car()>();
+
+        goto label4;
+
+     label3:
+        instanceofRes2 = y instanceof TestNode;
+
+        if instanceofRes2 == 0 goto label4;
+
+        RecieverCast2 = (TestNode) y;
 
         virtualinvoke RecieverCast2.<TestNode: void car()>();
 
-     label3:
-        return $r0;
+     label4:
+        return x;
     }
 
     public static void bar(TestNode, TestNode)
     {
-        TestNode $r0, r1, r2;
+        TestNode p1, p2, v, temp$0;
 
-        r1 := @parameter0: TestNode;
+        p1 := @parameter0: TestNode;
 
-        r2 := @parameter1: TestNode;
+        p2 := @parameter1: TestNode;
 
-        $r0 = new TestNode;
+        temp$0 = new TestNode;
 
-        specialinvoke $r0.<TestNode: void <init>()>();
+        specialinvoke temp$0.<TestNode: void <init>()>();
 
-        r1.<TestNode: TestNode f> = $r0;
+        v = temp$0;
+
+        p1.<TestNode: TestNode f> = v;
+
+        return;
+    }
+
+    public void <init>()
+    {
+        Test this;
+
+        this := @this: Test;
+
+        specialinvoke this.<java.lang.Object: void <init>()>();
 
         return;
     }
