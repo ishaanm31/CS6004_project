@@ -14,7 +14,7 @@ class TestNode extends java.lang.Object
         return;
     }
 
-    void car()
+    TestNode car()
     {
         java.io.PrintStream temp$0;
         TestNode this;
@@ -23,15 +23,8 @@ class TestNode extends java.lang.Object
 
         temp$0 = <java.lang.System: java.io.PrintStream out>;
 
-        instanceofRes3 = temp$0 instanceof java.io.PrintStream;
+        virtualinvoke temp$0.<java.io.PrintStream: void println(java.lang.String)>("hoho");
 
-        if instanceofRes3 == 0 goto label1;
-
-        RecieverCast3 = (java.io.PrintStream) temp$0;
-
-        virtualinvoke RecieverCast3.<java.io.PrintStream: void println(java.lang.String)>("hoho");
-
-     label1:
-        return;
+        return this;
     }
 }

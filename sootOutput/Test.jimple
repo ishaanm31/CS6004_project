@@ -17,7 +17,7 @@ public class Test extends java.lang.Object
     public static TestNode foo()
     {
         Yolo temp$1;
-        TestNode x, temp$0, y;
+        TestNode x, temp$0, y, temp$2;
 
         temp$0 = new TestNode;
 
@@ -39,26 +39,26 @@ public class Test extends java.lang.Object
         y = x;
 
      label2:
-        instanceofRes1 = y instanceof Yolo;
+        instanceofRes0 = y instanceof Yolo;
 
-        if instanceofRes1 == 0 goto label3;
+        if instanceofRes0 == 0 goto label3;
 
-        RecieverCast1 = (Yolo) y;
+        RecieverCast0 = (Yolo) y;
 
-        virtualinvoke RecieverCast1.<Yolo: void car()>();
+        temp$2 = virtualinvoke RecieverCast0.<Yolo: TestNode car()>();
 
         goto label4;
 
      label3:
-        instanceofRes2 = y instanceof TestNode;
+        instanceofRes1 = y instanceof TestNode;
 
-        if instanceofRes2 == 0 goto label4;
+        RecieverCast1 = (TestNode) y;
 
-        RecieverCast2 = (TestNode) y;
-
-        virtualinvoke RecieverCast2.<TestNode: void car()>();
+        temp$2 = virtualinvoke RecieverCast1.<TestNode: TestNode car()>();
 
      label4:
+        x = temp$2;
+
         return x;
     }
 

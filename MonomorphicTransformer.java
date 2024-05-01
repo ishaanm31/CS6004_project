@@ -46,7 +46,7 @@ public class MonomorphicTransformer extends SceneTransformer {
         }
     }
 
-    private void Transform(SootMethod Method){
+    synchronized private void Transform(SootMethod Method){
         System.out.println("Method: "+ Method.toString());
         //Getting unit chain of the method
         Body body=Method.getActiveBody();   //Body of the Method
@@ -60,12 +60,12 @@ public class MonomorphicTransformer extends SceneTransformer {
             if(u instanceof JAssignStmt){
                 JAssignStmt stmt= (JAssignStmt)u;
                 Value rhs= stmt.getRightOp();
-                if(rhs instanceof VirtualInvokeExpr) AssignSet.add(stmt);
+                //if(rhs instanceof VirtualInvokeExpr) AssignSet.add(stmt);
             }
             if(u instanceof JInvokeStmt){
                 JInvokeStmt stmt = (JInvokeStmt) u;
                 Value expr = stmt.getInvokeExpr();
-                if(expr instanceof JVirtualInvokeExpr) InvokeSet.add(stmt);
+                //if(expr instanceof JVirtualInvokeExpr) InvokeSet.add(stmt);
             }
         }
         for(JAssignStmt stmt: AssignSet){
@@ -77,7 +77,7 @@ public class MonomorphicTransformer extends SceneTransformer {
             List<Edge> list= new ArrayList<>();           
             Map<SootClass,BranchBox> Branches= new HashMap<>();  // one possible type of the object-> BranchBox
             Set<BranchBox> S= new HashSet<>();      //All Branchboxes
-            int BranchSize=0;
+            Integer BranchSize=0;
             System.out.println("OutEdges : ");
             while(OutEdges.hasNext()){
                 if(MAX_BRANCH==BranchSize++) break;
@@ -85,8 +85,8 @@ public class MonomorphicTransformer extends SceneTransformer {
                 System.out.println(e);
                 SootMethod callee=(SootMethod)e.getTgt(); 
                 //z= obj instanceof Class
-                Local z= Jimple.v().newLocal("instanceofRes"+k.toString(), IntType.v()) ;
-                Local RecieverCasted= Jimple.v().newLocal("RecieverCast"+k.toString(),callee.getDeclaringClass().getType());
+                Local z= Jimple.v().newLocal("z"+k.toString(), IntType.v()) ;
+                Local RecieverCasted= Jimple.v().newLocal("temp"+k.toString(),callee.getDeclaringClass().getType());
                 k++;
                 AssignStmt InstanceofStmt = Jimple.v().newAssignStmt(z, Jimple.v().newInstanceOfExpr( RhsVie.getBase(),callee.getDeclaringClass().getType()));
                 AssignStmt CastStmt = Jimple.v().newAssignStmt(RecieverCasted, Jimple.v().newCastExpr(RhsVie.getBase(),callee.getDeclaringClass().getType()));
@@ -96,6 +96,7 @@ public class MonomorphicTransformer extends SceneTransformer {
                 Branches.put(callee.getDeclaringClass(),b);
                 S.add(b);                
             }
+            System.out.println("Branch size: " + BranchSize.toString());
             //If true means the branches are too many we are better off using a polymorphic call instead of a PIC
             if(BranchSize==1+MAX_BRANCH) continue;
 
@@ -117,6 +118,7 @@ public class MonomorphicTransformer extends SceneTransformer {
             Unit StmtBefore= units.getPredOf(stmt);
             Unit StmtAfter= units.getSuccOf(stmt);
             Unit IfTarget;
+            List<Unit> pred= cfg.getPredsOf(stmt);
             units.remove(stmt);
             for(int i=0;i<BranchSequence.size();i++){
                 units.insertAfter(BranchSequence.get(i).InstanceofStmt,StmtBefore);
@@ -130,10 +132,10 @@ public class MonomorphicTransformer extends SceneTransformer {
                 if(i!=BranchSequence.size()-1) units.insertAfter(GoTo,BranchSequence.get(i).AssignmentStmt);  
                 StmtBefore= GoTo;
             }
+            units.remove(units.getPredOf(units.getPredOf(BranchSequence.get(BranchSequence.size()-1).AssignmentStmt)));
             //Now our part is done of making the PIC
 
             //Other points can jump to out removes unit
-            List<Unit> pred= cfg.getPredsOf(stmt);
             for(Unit p: pred){
                 if(p instanceof JGotoStmt){
                     JGotoStmt q= (JGotoStmt)p;
@@ -154,7 +156,7 @@ public class MonomorphicTransformer extends SceneTransformer {
             List<Edge> list= new ArrayList<>();
             Map<SootClass,BranchBox> Branches= new HashMap<>();
             Set<BranchBox> S= new HashSet<>();
-            int BranchSize=0;
+            Integer BranchSize=0;
             System.out.println("OutEdges : ");
             while(OutEdges.hasNext()){
                 if(MAX_BRANCH==BranchSize++) break;
@@ -162,7 +164,7 @@ public class MonomorphicTransformer extends SceneTransformer {
                 System.out.println(e);
                 SootMethod callee=(SootMethod)e.getTgt(); 
                 //z= obj instanceof Class
-                Local z= Jimple.v().newLocal("instanceofRes"+k.toString(), IntType.v()) ;
+                Local z= Jimple.v().newLocal("instanceofRes"+k.toString(), IntType.v());
                 Local RecieverCasted= Jimple.v().newLocal("RecieverCast"+k.toString(),callee.getDeclaringClass().getType());
                 k++;
                 AssignStmt InstanceofStmt = Jimple.v().newAssignStmt(z, Jimple.v().newInstanceOfExpr( RhsVie.getBase(),callee.getDeclaringClass().getType()));
@@ -174,6 +176,7 @@ public class MonomorphicTransformer extends SceneTransformer {
                 S.add(b);
                 
             }
+            System.out.println("Branch size: " + BranchSize.toString());
             //If true means the branches are too many we are better off using a polymorphic call instead of a PIC
             if(BranchSize==1+MAX_BRANCH) continue;
 
@@ -195,6 +198,7 @@ public class MonomorphicTransformer extends SceneTransformer {
             Unit StmtBefore= units.getPredOf(stmt);
             Unit StmtAfter= units.getSuccOf(stmt);
             Unit IfTarget;
+            List<Unit> pred= cfg.getPredsOf(stmt);
             units.remove(stmt);
             for(int i=0;i<BranchSequence.size();i++){
                 units.insertAfter(BranchSequence.get(i).InstanceofStmt,StmtBefore);
@@ -211,7 +215,6 @@ public class MonomorphicTransformer extends SceneTransformer {
             //Now our part is done of making the PIC
 
             //Other points can jump to out removes unit
-            List<Unit> pred= cfg.getPredsOf(stmt);
             for(Unit p: pred){
                 if(p instanceof JGotoStmt){
                     JGotoStmt q= (JGotoStmt)p;
@@ -224,17 +227,43 @@ public class MonomorphicTransformer extends SceneTransformer {
             }
         }
 
+        
+        Set<JInvokeStmt> S= new HashSet<>();
+        for(Unit u: units){
+            if(u instanceof JInvokeStmt){
+                JInvokeStmt stmt= (JInvokeStmt)u;
+                Value expr= stmt.getInvokeExpr();
+                if(!(expr instanceof JVirtualInvokeExpr)) continue;
+                Iterator<Edge> OutEdges= cg.edgesOutOf(stmt);
+                List<Edge> OE= new ArrayList<>();
+                while(OutEdges.hasNext()) OE.add(OutEdges.next());
+                System.err.println(OE.size());
+                if(OE.size()==1) S.add(stmt);                                                        
+            }
+        }
+        for(JInvokeStmt s:S){
+            VirtualInvokeExpr expr= (VirtualInvokeExpr) s.getInvokeExpr();
+            Iterator<Edge> OutEdges= cg.edgesOutOf(s);
+            Edge onlyEdge= OutEdges.next();
+            SootMethod targetMethod= (SootMethod)onlyEdge.getTgt();
+            VirtualInvokeExpr VIE= Jimple.v().newVirtualInvokeExpr((Local)expr.getBase(),targetMethod.makeRef(), expr.getArgs());
+            InvokeStmt InvokeStatemnt = Jimple.v().newInvokeStmt(VIE);       
+            units.insertAfter(InvokeStatemnt,s); 
+            //units.remove(s);
+        }
         for(Unit u: units){
             System.out.println(u);
-            // if(u instanceof JAssignStmt){
-            //     JAssignStmt stmt= (JAssignStmt)u;
-            //     Value rhs= stmt.getRightOp();
-            //     System.out.println("R: "+ rhs.getClass().toString());
-            // }
+            if(u instanceof JInvokeStmt){
+                JInvokeStmt stmt= (JInvokeStmt)u;
+                if(stmt.getInvokeExpr() instanceof JVirtualInvokeExpr){
+                    JVirtualInvokeExpr v= (JVirtualInvokeExpr) stmt.getInvokeExpr();
+                    if(!v.getMethodRef().isStatic()) System.out.println("this invoke is not static: ");
+                }
+            }
         }
         //Printing the units
     }
-    private static void getlistofMethods(SootMethod method, Set<SootMethod> reachableMethods) {
+    public static void getlistofMethods(SootMethod method, Set<SootMethod> reachableMethods) {
         // Avoid revisiting methods
         if (reachableMethods.contains(method)) {
             return;

@@ -1,7 +1,7 @@
 class Yolo extends TestNode
 {
 
-    void car()
+    TestNode car()
     {
         java.io.PrintStream temp$0;
         Yolo this;
@@ -10,16 +10,9 @@ class Yolo extends TestNode
 
         temp$0 = <java.lang.System: java.io.PrintStream out>;
 
-        instanceofRes0 = temp$0 instanceof java.io.PrintStream;
+        virtualinvoke temp$0.<java.io.PrintStream: void println(java.lang.String)>("nono");
 
-        if instanceofRes0 == 0 goto label1;
-
-        RecieverCast0 = (java.io.PrintStream) temp$0;
-
-        virtualinvoke RecieverCast0.<java.io.PrintStream: void println(java.lang.String)>("nono");
-
-     label1:
-        return;
+        return this;
     }
 
     void <init>()
