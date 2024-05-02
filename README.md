@@ -17,12 +17,14 @@ java -cp .:soot2.jar PA4_null
 
 ```bash
 cd sootOutput
+chmod +x ./run_java_heap_resize.sh
 ./run_java_heap_resize.sh
 ```
 ### Step 4: To get GC stats for 100 runs for original program
 
 ```bash
 cd testcase
+chmod +x ./run_java_heap_resize.sh
 ./run_java_heap_resize.sh
 ```
 ### Step 5: To compare GC stats original and modified program
