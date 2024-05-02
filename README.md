@@ -13,14 +13,13 @@ javac -cp .:soot2.jar PA4_null.java
 ```bash
 java -cp .:soot2.jar PA4_null 
 ```
-### Step 3: To get GC stats for 100 runs for modified program
+### Step 3: To get GC stats for 100 runs for modified program (Run in sootOutput directory)
 
 ```bash
-cd sootOutput
 chmod +x ./run_java_heap_resize.sh
 ./run_java_heap_resize.sh
 ```
-### Step 4: To get GC stats for 100 runs for original program
+### Step 4: To get GC stats for 100 runs for original program (Run in testcase directory)
 
 ```bash
 cd testcase
