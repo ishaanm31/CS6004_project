@@ -47,13 +47,14 @@ public class MethodInline extends SceneTransformer {
         Body newBody = Jimple.v().newBody(method);
 
         // Copy instructions from the original method body to the inline body
-        for (Unit unit : body.getUnits()) {
+        UnitPatchingChain Units= body.getUnits();
+        for (Unit unit : Units) {
             //System.out.println(unit);
             if(unit instanceof JInvokeStmt){
                 JInvokeStmt stmt= (JInvokeStmt) unit;
                 InvokeExpr expr= stmt.getInvokeExpr();
                 if(expr instanceof JVirtualInvokeExpr){
-                    if(true) PerformInline(newBody.getUnits(),stmt);
+                    if(true) PerformInline(newBody.getUnits(),stmt, Units.getSuccOf(stmt));
                 }
             }
             else newBody.getUnits().add(unit);
@@ -61,8 +62,9 @@ public class MethodInline extends SceneTransformer {
         for (Unit unit : newBody.getUnits()) {
             System.out.println(unit);
         }
+        //method.setActiveBody(newBody);
     }
-    private void PerformInline(UnitPatchingChain CallerUnits , JInvokeStmt callsite){
+    private void PerformInline(UnitPatchingChain CallerUnits , JInvokeStmt callsite, Unit NextStmt){
         JVirtualInvokeExpr expr= (JVirtualInvokeExpr)callsite.getInvokeExpr();
         SootMethod method= expr.getMethod();
         Value Reciever= expr.getBase();
@@ -81,6 +83,11 @@ public class MethodInline extends SceneTransformer {
                     int index= ((ParameterRef)rhs).getIndex() ;
                     newU = Jimple.v().newAssignStmt(lhs,Args.get(index));
                 }
+                CallerUnits.add(newU);
+            }
+            else if((u instanceof JReturnStmt) | (u instanceof  ReturnVoidStmt)){
+                System.out.println("came here");
+                newU= Jimple.v().newGotoStmt(NextStmt);
                 CallerUnits.add(newU);
             }
             else{

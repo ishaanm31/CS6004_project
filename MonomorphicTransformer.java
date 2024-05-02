@@ -1,6 +1,10 @@
 import java.util.*;
 import java.util.concurrent.ArrayBlockingQueue;
 
+import javax.swing.text.html.Option;
+
+import org.omg.CORBA.portable.ValueBase;
+
 import soot.*;
 import soot.jimple.toolkits.callgraph.CallGraph;
 import soot.jimple.toolkits.callgraph.Edge;
@@ -13,6 +17,7 @@ import soot.jimple.internal.*;
 import soot.toolkits.graph.*;
 import soot.toolkits.scalar.BackwardFlowAnalysis;
 import soot.toolkits.scalar.FlowSet;
+import soot.options.*;
 /* Written by: Ishaan Manhar, Suven Jagtiani
  * For any queries mail ishaanmanhar2002@gmail.com
  * Purpose: Tries to statically change dynamic virtualinvokes to statically determined monomorphic staticinvoke
@@ -28,6 +33,7 @@ public class MonomorphicTransformer extends SceneTransformer {
     static PointsToAnalysis PTG;
     static Hierarchy ClassHierarchy;
     static Integer k=0;
+    static SootClass StaticSootClass;
     @Override
     synchronized protected void internalTransform(String arg0, Map<String, String> arg1) {
         //Creating the call graph
@@ -40,10 +46,12 @@ public class MonomorphicTransformer extends SceneTransformer {
         Set<SootMethod> AllMethods = new HashSet <>();
         SootMethod mainMethod = Scene.v().getMainMethod();
         getlistofMethods(mainMethod, AllMethods); //DFS
-
-        for(SootMethod Method: AllMethods){
-            Transform(Method);            //This will individually transform each method 
-        }
+        //StaticSootClass= new SootClass("StaticClass") ; //Static Class to contain all the static methods converted from virtual methods
+        StaticSootClass= mainMethod.getDeclaringClass();
+        // for(SootMethod Method: AllMethods){
+        //     Transform(Method);            //This will individually transform each method 
+        // }
+        Transform(mainMethod);
     }
 
     synchronized private void Transform(SootMethod Method){
@@ -55,180 +63,8 @@ public class MonomorphicTransformer extends SceneTransformer {
         Set<JAssignStmt> AssignSet= new HashSet<>(); //Contains all the x=y.foo() units
         Set<JInvokeStmt> InvokeSet= new HashSet<>(); //Contains all z.bar() units
 
-        //Filling AssignSet and Invoke Set
-        for(Unit u: units){
-            if(u instanceof JAssignStmt){
-                JAssignStmt stmt= (JAssignStmt)u;
-                Value rhs= stmt.getRightOp();
-                //if(rhs instanceof VirtualInvokeExpr) AssignSet.add(stmt);
-            }
-            if(u instanceof JInvokeStmt){
-                JInvokeStmt stmt = (JInvokeStmt) u;
-                Value expr = stmt.getInvokeExpr();
-                //if(expr instanceof JVirtualInvokeExpr) InvokeSet.add(stmt);
-            }
-        }
-        for(JAssignStmt stmt: AssignSet){
-            Value rhs= stmt.getRightOp();
-            System.out.println("Transforming asssign statement: "+ stmt.toString());
-            JVirtualInvokeExpr RhsVie= (JVirtualInvokeExpr)rhs;
-            //This is a virutalinvoke callsite which we wish to convert to multiple statically known invokes
-            Iterator<Edge> OutEdges= cg.edgesOutOf(stmt); //Edges represent the possible invokation
-            List<Edge> list= new ArrayList<>();           
-            Map<SootClass,BranchBox> Branches= new HashMap<>();  // one possible type of the object-> BranchBox
-            Set<BranchBox> S= new HashSet<>();      //All Branchboxes
-            Integer BranchSize=0;
-            System.out.println("OutEdges : ");
-            while(OutEdges.hasNext()){
-                if(MAX_BRANCH==BranchSize++) break;
-                Edge e = OutEdges.next();
-                System.out.println(e);
-                SootMethod callee=(SootMethod)e.getTgt(); 
-                //z= obj instanceof Class
-                Local z= Jimple.v().newLocal("z"+k.toString(), IntType.v()) ;
-                Local RecieverCasted= Jimple.v().newLocal("temp"+k.toString(),callee.getDeclaringClass().getType());
-                k++;
-                AssignStmt InstanceofStmt = Jimple.v().newAssignStmt(z, Jimple.v().newInstanceOfExpr( RhsVie.getBase(),callee.getDeclaringClass().getType()));
-                AssignStmt CastStmt = Jimple.v().newAssignStmt(RecieverCasted, Jimple.v().newCastExpr(RhsVie.getBase(),callee.getDeclaringClass().getType()));
-                VirtualInvokeExpr VIE= Jimple.v().newVirtualInvokeExpr(RecieverCasted,callee.makeRef(), RhsVie.getArgs());
-                AssignStmt AssignmentStmt = Jimple.v().newAssignStmt(stmt.getLeftOp(), VIE);                                                                                 
-                BranchBox b= new BranchBox(callee.getDeclaringClass(),e,InstanceofStmt,AssignmentStmt,CastStmt);
-                Branches.put(callee.getDeclaringClass(),b);
-                S.add(b);                
-            }
-            System.out.println("Branch size: " + BranchSize.toString());
-            //If true means the branches are too many we are better off using a polymorphic call instead of a PIC
-            if(BranchSize==1+MAX_BRANCH) continue;
-
-            //Creating children relationship in branchbox taken from class heirarchy
-            for(BranchBox bb: S){
-                List<SootClass> l= ClassHierarchy.getDirectSubclassesOf(bb.Klass) ;
-                for(SootClass c:l){
-                    if(Branches.containsKey(c)) bb.addChild(Branches.get(c));
-                }
-            }
-
-            //Now lets create the sequence of branching 
-            List<BranchBox> BranchSequence = new ArrayList<>();
-            BranchBox.DfsMarker.clear();
-            for(BranchBox c: S) c.DFS(BranchSequence);
-
-            //Now its finally time to add our new branches to the body of our code
-
-            Unit StmtBefore= units.getPredOf(stmt);
-            Unit StmtAfter= units.getSuccOf(stmt);
-            Unit IfTarget;
-            List<Unit> pred= cfg.getPredsOf(stmt);
-            units.remove(stmt);
-            for(int i=0;i<BranchSequence.size();i++){
-                units.insertAfter(BranchSequence.get(i).InstanceofStmt,StmtBefore);
-                if(i==BranchSequence.size()-1)     IfTarget=StmtAfter;
-                else IfTarget= BranchSequence.get(i+1).InstanceofStmt;
-                Unit IfStmt = Jimple.v().newIfStmt(Jimple.v().newEqExpr(BranchSequence.get(i).InstanceofStmt.getLeftOp(), IntConstant.v(0)), IfTarget);
-                units.insertAfter(IfStmt,BranchSequence.get(i).InstanceofStmt);
-                units.insertAfter(BranchSequence.get(i).CastStmt,IfStmt);
-                units.insertAfter(BranchSequence.get(i).AssignmentStmt,BranchSequence.get(i).CastStmt);
-                Unit GoTo=Jimple.v().newGotoStmt(StmtAfter);
-                if(i!=BranchSequence.size()-1) units.insertAfter(GoTo,BranchSequence.get(i).AssignmentStmt);  
-                StmtBefore= GoTo;
-            }
-            units.remove(units.getPredOf(units.getPredOf(BranchSequence.get(BranchSequence.size()-1).AssignmentStmt)));
-            //Now our part is done of making the PIC
-
-            //Other points can jump to out removes unit
-            for(Unit p: pred){
-                if(p instanceof JGotoStmt){
-                    JGotoStmt q= (JGotoStmt)p;
-                    q.setTarget(BranchSequence.get(0).InstanceofStmt);
-                }
-                if(p instanceof JIfStmt){
-                    JIfStmt q= (JIfStmt)p;
-                    q.setTarget(BranchSequence.get(0).InstanceofStmt);
-                }
-            }
-        }
-
-        for(InvokeStmt stmt: InvokeSet){
-            System.out.println("Transforming invoke statement: "+ stmt.toString());
-            JVirtualInvokeExpr RhsVie= (JVirtualInvokeExpr) stmt.getInvokeExpr();
-            //This is a virutalinvoke callsit which we wish to convert to multiple statics
-            Iterator<Edge> OutEdges= cg.edgesOutOf(stmt);
-            List<Edge> list= new ArrayList<>();
-            Map<SootClass,BranchBox> Branches= new HashMap<>();
-            Set<BranchBox> S= new HashSet<>();
-            Integer BranchSize=0;
-            System.out.println("OutEdges : ");
-            while(OutEdges.hasNext()){
-                if(MAX_BRANCH==BranchSize++) break;
-                Edge e = OutEdges.next();
-                System.out.println(e);
-                SootMethod callee=(SootMethod)e.getTgt(); 
-                //z= obj instanceof Class
-                Local z= Jimple.v().newLocal("instanceofRes"+k.toString(), IntType.v());
-                Local RecieverCasted= Jimple.v().newLocal("RecieverCast"+k.toString(),callee.getDeclaringClass().getType());
-                k++;
-                AssignStmt InstanceofStmt = Jimple.v().newAssignStmt(z, Jimple.v().newInstanceOfExpr( RhsVie.getBase(),callee.getDeclaringClass().getType()));
-                AssignStmt CastStmt = Jimple.v().newAssignStmt(RecieverCasted, Jimple.v().newCastExpr(RhsVie.getBase(),callee.getDeclaringClass().getType()));
-                VirtualInvokeExpr VIE= Jimple.v().newVirtualInvokeExpr(RecieverCasted,callee.makeRef(), RhsVie.getArgs());
-                InvokeStmt InvokeStatemnt = Jimple.v().newInvokeStmt(VIE);                                                                                 
-                BranchBox b= new BranchBox(callee.getDeclaringClass(),e,InstanceofStmt,InvokeStatemnt,CastStmt);
-                Branches.put(callee.getDeclaringClass(),b);
-                S.add(b);
-                
-            }
-            System.out.println("Branch size: " + BranchSize.toString());
-            //If true means the branches are too many we are better off using a polymorphic call instead of a PIC
-            if(BranchSize==1+MAX_BRANCH) continue;
-
-            //Creating children relationship in branchbox taken from class heirarchy
-            for(BranchBox bb: S){
-                List<SootClass> l= ClassHierarchy.getDirectSubclassesOf(bb.Klass) ;
-                for(SootClass c:l){
-                    if(Branches.containsKey(c)) bb.addChild(Branches.get(c));
-                }
-            }
-
-            //Now lets create the sequence of branching 
-            List<BranchBox> BranchSequence = new ArrayList<>();
-            BranchBox.DfsMarker.clear();
-            for(BranchBox c: S) c.DFS(BranchSequence);
-
-            //Now its finally time to add our new branches to the body of our code
-
-            Unit StmtBefore= units.getPredOf(stmt);
-            Unit StmtAfter= units.getSuccOf(stmt);
-            Unit IfTarget;
-            List<Unit> pred= cfg.getPredsOf(stmt);
-            units.remove(stmt);
-            for(int i=0;i<BranchSequence.size();i++){
-                units.insertAfter(BranchSequence.get(i).InstanceofStmt,StmtBefore);
-                if(i==BranchSequence.size()-1)     IfTarget=StmtAfter;
-                else IfTarget= BranchSequence.get(i+1).InstanceofStmt;
-                Unit IfStmt = Jimple.v().newIfStmt(Jimple.v().newEqExpr(BranchSequence.get(i).InstanceofStmt.getLeftOp(), IntConstant.v(0)), IfTarget);
-                units.insertAfter(IfStmt,BranchSequence.get(i).InstanceofStmt);
-                units.insertAfter(BranchSequence.get(i).CastStmt,IfStmt);
-                units.insertAfter(BranchSequence.get(i).AssignmentStmt,BranchSequence.get(i).CastStmt);
-                Unit GoTo=Jimple.v().newGotoStmt(StmtAfter);
-                if(i!=BranchSequence.size()-1) units.insertAfter(GoTo,BranchSequence.get(i).AssignmentStmt);  
-                StmtBefore= GoTo;
-            }
-            //Now our part is done of making the PIC
-
-            //Other points can jump to out removes unit
-            for(Unit p: pred){
-                if(p instanceof JGotoStmt){
-                    JGotoStmt q= (JGotoStmt)p;
-                    q.setTarget(BranchSequence.get(0).InstanceofStmt);
-                }
-                if(p instanceof JIfStmt){
-                    JIfStmt q= (JIfStmt)p;
-                    q.setTarget(BranchSequence.get(0).InstanceofStmt);
-                }
-            }
-        }
-
-        
         Set<JInvokeStmt> S= new HashSet<>();
+        Set<JAssignStmt> L= new HashSet<>();
         for(Unit u: units){
             if(u instanceof JInvokeStmt){
                 JInvokeStmt stmt= (JInvokeStmt)u;
@@ -240,28 +76,94 @@ public class MonomorphicTransformer extends SceneTransformer {
                 System.err.println(OE.size());
                 if(OE.size()==1) S.add(stmt);                                                        
             }
+            if(u instanceof JAssignStmt){
+                JAssignStmt stmt= (JAssignStmt)u;
+                Value expr= stmt.getRightOp();
+                if(expr instanceof JVirtualInvokeExpr){
+                    JVirtualInvokeExpr exprv=  (JVirtualInvokeExpr)expr;
+                    Iterator<Edge> OutEdges= cg.edgesOutOf(stmt);
+                    List<Edge> OE= new ArrayList<>();
+                    while(OutEdges.hasNext()) OE.add(OutEdges.next());
+                    System.err.println(OE.size());
+                    if(OE.size()==1) L.add(stmt);
+                }
+                                                                       
+            }
         }
         for(JInvokeStmt s:S){
+            System.out.println(s);
             VirtualInvokeExpr expr= (VirtualInvokeExpr) s.getInvokeExpr();
             Iterator<Edge> OutEdges= cg.edgesOutOf(s);
             Edge onlyEdge= OutEdges.next();
             SootMethod targetMethod= (SootMethod)onlyEdge.getTgt();
             VirtualInvokeExpr VIE= Jimple.v().newVirtualInvokeExpr((Local)expr.getBase(),targetMethod.makeRef(), expr.getArgs());
-            InvokeStmt InvokeStatemnt = Jimple.v().newInvokeStmt(VIE);       
+            List<Value> NewArgs= new ArrayList<>();
+            SootMethod StaticMethod= MakeStaticMethod(targetMethod);
+            NewArgs.addAll(expr.getArgs());
+            NewArgs.add(expr.getBase());
+            System.out.println(StaticMethod);
+            System.out.println(NewArgs);
+            System.out.println(StaticMethod.makeRef().getDeclaringClass());
+            StaticInvokeExpr SIE= new JStaticInvokeExpr(StaticMethod.makeRef(),NewArgs);
+            InvokeStmt InvokeStatemnt = Jimple.v().newInvokeStmt(SIE);       
             units.insertAfter(InvokeStatemnt,s); 
-            //units.remove(s);
+            units.remove(s);
+        }
+        for(JAssignStmt s:L){
+            System.out.println(s);
+            VirtualInvokeExpr expr= (VirtualInvokeExpr) s.getRightOp();
+            Iterator<Edge> OutEdges= cg.edgesOutOf(s);
+            Edge onlyEdge= OutEdges.next();
+            SootMethod targetMethod= (SootMethod)onlyEdge.getTgt();
+            VirtualInvokeExpr VIE= Jimple.v().newVirtualInvokeExpr((Local)expr.getBase(),targetMethod.makeRef(), expr.getArgs());
+            List<Value> NewArgs= new ArrayList<>();
+            SootMethod StaticMethod= MakeStaticMethod(targetMethod);
+            NewArgs.addAll(expr.getArgs());
+            NewArgs.add(expr.getBase());
+            System.out.println(StaticMethod);
+            System.out.println(NewArgs);
+            System.out.println(StaticMethod.makeRef().getDeclaringClass());
+            StaticInvokeExpr SIE= new JStaticInvokeExpr(StaticMethod.makeRef(),NewArgs);
+            AssignStmt AssignStatement = Jimple.v().newAssignStmt(s.getLeftOp(),SIE);       
+            units.insertAfter(AssignStatement,s); 
+            units.remove(s);
         }
         for(Unit u: units){
             System.out.println(u);
-            if(u instanceof JInvokeStmt){
-                JInvokeStmt stmt= (JInvokeStmt)u;
-                if(stmt.getInvokeExpr() instanceof JVirtualInvokeExpr){
-                    JVirtualInvokeExpr v= (JVirtualInvokeExpr) stmt.getInvokeExpr();
-                    if(!v.getMethodRef().isStatic()) System.out.println("this invoke is not static: ");
-                }
-            }
         }
         //Printing the units
+    }
+    private static SootMethod MakeStaticMethod(SootMethod VMethod){
+        List<Type> ParamType= new ArrayList<>();
+        ParamType.addAll( VMethod.getParameterTypes());        //Rest Type
+        Type TypeofThis= VMethod.getDeclaringClass().getType();
+        ParamType.add(TypeofThis); //Type of this
+        SootMethod SMethod= Scene.v().makeSootMethod(VMethod.getName().toString()+"Static", ParamType, VMethod.getReturnType()) ;
+        Body body= Jimple.v().newBody(SMethod);
+        UnitPatchingChain sunits= body.getUnits();
+        Unit newU;
+        for(Unit u: VMethod.getActiveBody().getUnits()){
+            newU=u;
+            if(u instanceof IdentityStmt){
+                IdentityStmt stmt = (IdentityStmt)u; 
+                Value lhs= stmt.getLeftOp();
+                IdentityRef rhs= (IdentityRef)stmt.getRightOp();
+                if(rhs instanceof ThisRef) {
+                    ParameterRef PThisRef= Jimple.v().newParameterRef(TypeofThis,ParamType.size()-1);
+                    newU = Jimple.v().newIdentityStmt(lhs,PThisRef);
+                }
+            }
+            sunits.add(newU);
+        }
+        SMethod.setActiveBody(body);
+        StaticSootClass.addMethod(SMethod);
+        SMethod.setDeclaringClass(StaticSootClass);
+        System.out.println("Static method:");
+        for(Unit u:sunits){
+            System.out.println(u);
+        }
+        System.out.println("Static method Ended");
+        return SMethod;
     }
     public static void getlistofMethods(SootMethod method, Set<SootMethod> reachableMethods) {
         // Avoid revisiting methods
@@ -282,4 +184,5 @@ public class MonomorphicTransformer extends SceneTransformer {
             }
         }
     }
+
 }

@@ -19,21 +19,20 @@ public class PA3 {
         //Set up arguments for Soot
         String[] sootArgs = {   
             "-cp", classPath, "-pp",  // sets the class path for Soot
+            "-wrong-staticness","ignore",
             "-w",                     // whole program analysis
-            "-f", "c",                // jimple file
+            "-f", "J",                // jimple file
             "-keep-line-number",      // preserves line numbers in input Java files
             "-main-class", "Test",	  // specify the main class
             "-process-dir", dir,      // directory of classes to analyze
         };
         // Create transformer for analysis
-        MethodInline monomorphicTransformer = new MethodInline();
+        MonomorphicTransformer monomorphicTransformer = new MonomorphicTransformer();
         // NullTransformer nullTransformer= new NullTransformer();
 
         // Add transformer to appropriate pack in PackManager; PackManager will run all packs when soot.Main.main is called
         PackManager.v().getPack("wjtp").add(new Transform("wjtp.mm", monomorphicTransformer));
-
         // Call Soot's main method with arguments
         soot.Main.main(sootArgs);
-        System.out.println("came here");
     }
 }
