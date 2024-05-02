@@ -1,5 +1,5 @@
 #!/bin/bash
-
+javac test_null_bench.java
 # Output file to store results
 output_file="../summary_og.txt"
 echo "Count of <heap-resize> tags, Net Amount" > "$output_file"
