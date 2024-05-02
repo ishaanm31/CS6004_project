@@ -4,15 +4,13 @@ class TestNode {
 	TestNode() {}
 	void car(){
 		System.out.println("hoho");
-		// return this;
 	}
 }
-// class Yolo extends TestNode{
-// 	void car(){
-// 		System.out.println("nono");
-// 		// return this;
-// 	}
-// }
+class ChildTestNode extends TestNode{
+	void car(){
+		System.out.println("nono");
+	}
+}
 
 public class Test {
 	public static TestNode global;
@@ -23,15 +21,9 @@ public class Test {
 	}
 	public static TestNode foo(){
 		TestNode x = new TestNode();
-		// TestNode y = new Yolo();
-		//if(y==null) y=x;
-		Integer xx=0;
-		xx=null;
+		TestNode y = new ChildTestNode();
+		if(y==null) y=x;
+		y.car();
 		return x;
-
-	}
-	public static void bar(TestNode p1, TestNode p2){
-		TestNode v = new TestNode();
-		p1.f = v;	
 	}
 }
